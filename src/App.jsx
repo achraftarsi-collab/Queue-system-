@@ -5,6 +5,7 @@ const SUPABASE_URL = "https://zondhwwrleijbpaziujl.supabase.co";
 const SUPABASE_KEY = "sb_publishable_FPy29ZX2iXjEmODgOOarRA_zjws9XYp";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const STAFF_PASSWORD = "1234";
+const NOTIFY_URL = "https://zondhwwrleijbpaziujl.supabase.co/functions/v1/notify-customer";
 
 async function getOrCreateSession() {
   const today = new Date().toISOString().split("T")[0];
@@ -215,6 +216,16 @@ function StaffView({ session, queue, current, reload, onLogout }) {
     try {
       if (current) await supabase.from("tickets").update({ status: "done", served_at: new Date().toISOString() }).eq("id", current.id);
       await supabase.from("tickets").update({ status: "serving" }).eq("id", queue[0].id);
+      if (queue.length >= 2) {
+        const toNotify = queue[1];
+        if (toNotify.phone && toNotify.notif_method !== "none") {
+          fetch(NOTIFY_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
+            body: JSON.stringify({ phone: toNotify.phone, name: toNotify.name, ticket_number: toNotify.ticket_number })
+          }).catch(e => console.log("notify error:", e));
+        }
+      }
       setFlash(true); setTimeout(() => setFlash(false), 800);
       await reload();
     } catch (e) { console.error(e); }
