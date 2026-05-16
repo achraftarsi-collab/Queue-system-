@@ -17,7 +17,7 @@ async function getOrCreateSession() {
   return data;
 }
 async function fetchQueue(sid) {
-  const { data } = await supabase.from("tickets").select("*").eq("session_id", sid).eq("status", "waiting").order("ticket_number", { ascending: true });
+  const { data } = await supabase.from("tickets").select("*").eq("session_id", sid).in("status", ["waiting", "notified"]).order("ticket_number", { ascending: true });
   return data || [];
 }
 async function fetchCurrent(sid) {
@@ -34,7 +34,7 @@ async function fetchStats(sid) {
   return {
     total: data.length,
     done: data.filter(t => t.status === "done" || t.status === "skipped").length,
-    waiting: data.filter(t => t.status === "waiting").length,
+    waiting: data.filter(t => t.status === "waiting" || t.status === "notified").length,
   };
 }
 
