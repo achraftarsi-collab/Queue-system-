@@ -92,12 +92,59 @@ function StaffLogin({ onLogin }) {
   );
 }
 
+function SettingsPanel({ onClose }) {
+  const [shopName, setShopName] = useState(localStorage.getItem("shopName") || "Queue Pro");
+  const [serviceTime, setServiceTime] = useState(localStorage.getItem("serviceTime") || "5");
+  const [notifyBefore, setNotifyBefore] = useState(localStorage.getItem("notifyBefore") || "2");
+  const [newPassword, setNewPassword] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    localStorage.setItem("shopName", shopName);
+    localStorage.setItem("serviceTime", serviceTime);
+    localStorage.setItem("notifyBefore", notifyBefore);
+    if (newPassword) localStorage.setItem("staffPassword", newPassword);
+    setSaved(true);
+    setTimeout(() => { setSaved(false); onClose(); }, 1200);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)" }}>
+      <div style={{ background: "rgba(15,10,40,0.98)", border: "1px solid rgba(99,102,241,0.4)", borderRadius: "24px", padding: "32px 28px", width: "90%", maxWidth: "400px", animation: "popIn 0.3s ease" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+          <h2 style={{ color: "#e2e8f0", fontFamily: "'Cairo',sans-serif", margin: 0, fontSize: "20px" }}>⚙️ الإعدادات</h2>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#475569", fontSize: "20px", cursor: "pointer" }}>✕</button>
+        </div>
+
+        {[
+          { label: "اسم المحل", value: shopName, setValue: setShopName, placeholder: "Queue Pro", type: "text" },
+          { label: "وقت الخدمة (دقائق)", value: serviceTime, setValue: setServiceTime, placeholder: "5", type: "number" },
+          { label: "إشعار قبل (أشخاص)", value: notifyBefore, setValue: setNotifyBefore, placeholder: "2", type: "number" },
+          { label: "كلمة مرور جديدة", value: newPassword, setValue: setNewPassword, placeholder: "اتركه فارغاً للإبقاء على القديم", type: "password" },
+        ].map((f, i) => (
+          <div key={i} style={{ marginBottom: "16px" }}>
+            <label style={{ display: "block", color: "#a5b4fc", fontSize: "12px", marginBottom: "6px", fontFamily: "'Cairo',sans-serif", textAlign: "right" }}>{f.label}</label>
+            <input type={f.type} placeholder={f.placeholder} value={f.value} onChange={e => f.setValue(e.target.value)}
+              style={{ width: "100%", padding: "11px 13px", borderRadius: "10px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", color: "#e2e8f0", fontSize: "14px", fontFamily: "'Cairo',sans-serif", outline: "none", direction: "rtl" }} />
+          </div>
+        ))}
+
+        <button onClick={handleSave} style={{ width: "100%", padding: "13px", borderRadius: "12px", border: "none", background: saved ? "linear-gradient(135deg,#10b981,#059669)" : "linear-gradient(135deg,#6366f1,#ec4899)", color: "#fff", fontSize: "15px", fontFamily: "'Cairo',sans-serif", fontWeight: "700", cursor: "pointer", transition: "all 0.3s" }}>
+          {saved ? "✅ تم الحفظ!" : "💾 حفظ الإعدادات"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ClientView({ session, queue, current }) {
   const [step, setStep] = useState("home");
   const [myTicket, setMyTicket] = useState(null);
   const [form, setForm] = useState({ name: "", phone: "", notif: "whatsapp" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const shopName = localStorage.getItem("shopName") || "نظام الطابور";
+  const serviceTime = parseInt(localStorage.getItem("serviceTime") || "5");
 
   useEffect(() => {
     if (!session) return;
@@ -133,14 +180,14 @@ function ClientView({ session, queue, current }) {
     <div style={{ maxWidth: "420px", margin: "0 auto", padding: "20px 16px" }}>
       <div style={{ textAlign: "center", marginBottom: "24px" }}>
         <div style={{ fontSize: "40px", marginBottom: "6px" }}>🎫</div>
-        <h1 style={{ fontFamily: "'Bebas Neue',cursive", fontSize: "38px", background: "linear-gradient(135deg,#a5b4fc,#f0abfc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: 0 }}>نظام الطابور</h1>
+        <h1 style={{ fontFamily: "'Bebas Neue',cursive", fontSize: "38px", background: "linear-gradient(135deg,#a5b4fc,#f0abfc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: 0 }}>{shopName}</h1>
         <p style={{ color: "#475569", fontFamily: "'Cairo',sans-serif", fontSize: "13px", margin: "4px 0 0" }}>احجز مكانك وانتظر بارتياح</p>
       </div>
       <StatusBar current={current} queueLen={queue.length} />
       {step === "home" && (
         <div style={{ animation: "fadeIn 0.3s ease" }}>
           <button onClick={() => setStep("form")} style={{ width: "100%", padding: "22px", borderRadius: "18px", border: "none", background: "linear-gradient(135deg,#6366f1,#ec4899)", color: "#fff", fontSize: "22px", fontFamily: "'Cairo',sans-serif", fontWeight: "800", cursor: "pointer", boxShadow: "0 10px 36px rgba(99,102,241,0.45)", animation: "pulse 2.5s infinite" }}>🎫 خذ رقمًا الآن</button>
-          {queue.length > 0 && <div style={{ marginTop: "14px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: "12px", padding: "12px 16px", textAlign: "center" }}><span style={{ color: "#94a3b8", fontFamily: "'Cairo',sans-serif", fontSize: "13px" }}>⏳ يوجد <strong style={{ color: "#a5b4fc" }}>{queue.length}</strong> شخص — الانتظار ~<strong style={{ color: "#10b981" }}>{queue.length * 5}</strong> دقيقة</span></div>}
+          {queue.length > 0 && <div style={{ marginTop: "14px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: "12px", padding: "12px 16px", textAlign: "center" }}><span style={{ color: "#94a3b8", fontFamily: "'Cairo',sans-serif", fontSize: "13px" }}>⏳ يوجد <strong style={{ color: "#a5b4fc" }}>{queue.length}</strong> شخص — الانتظار ~<strong style={{ color: "#10b981" }}>{queue.length * serviceTime}</strong> دقيقة</span></div>}
         </div>
       )}
       {step === "form" && (
@@ -185,13 +232,13 @@ function ClientView({ session, queue, current }) {
                 </div>
                 <div style={{ background: "rgba(236,72,153,0.15)", borderRadius: "12px", padding: "10px 16px" }}>
                   <div style={{ color: "#64748b", fontSize: "10px", fontFamily: "'Cairo',sans-serif" }}>الانتظار</div>
-                  <div style={{ color: "#fff", fontSize: "20px", fontFamily: "'Bebas Neue',cursive" }}>~{(position - 1) * 5} د</div>
+                  <div style={{ color: "#fff", fontSize: "20px", fontFamily: "'Bebas Neue',cursive" }}>~{(position - 1) * serviceTime} د</div>
                 </div>
               </div>
             )}
             {myTicket.phone && myTicket.notif_method !== "none" && !isDone && (
               <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: "10px", padding: "8px 14px", color: "#6ee7b7", fontSize: "12px", fontFamily: "'Cairo',sans-serif" }}>
-                {myTicket.notif_method === "whatsapp" ? "💬" : "📱"} سيتم إشعارك على {myTicket.phone} قبل دورك بـ 10 دقائق
+                {myTicket.notif_method === "whatsapp" ? "💬" : "📱"} سيتم إشعارك على {myTicket.phone} قبل دورك
               </div>
             )}
           </div>
@@ -207,18 +254,22 @@ function StaffView({ session, queue, current, reload, onLogout }) {
   const [flash, setFlash] = useState(false);
   const [stats, setStats] = useState({ total: 0, done: 0, waiting: 0 });
   const [confirmClose, setConfirmClose] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const notifyBefore = parseInt(localStorage.getItem("notifyBefore") || "2");
 
   useEffect(() => { fetchStats(session.id).then(setStats); }, [queue, current]);
 
   const handleNext = async () => {
-    if (queue.length === 0) return;
+    if (queue.length === 0 || loading) return;
     setLoading(true);
     try {
-      if (current) await supabase.from("tickets").update({ status: "done", served_at: new Date().toISOString() }).eq("id", current.id);
+      if (current) {
+        await supabase.from("tickets").update({ status: "done", served_at: new Date().toISOString() }).eq("id", current.id);
+      }
       await supabase.from("tickets").update({ status: "serving" }).eq("id", queue[0].id);
-      if (queue.length >= 2) {
-        const toNotify = queue[1];
-        if (toNotify.phone && toNotify.notif_method !== "none") {
+      if (queue.length >= notifyBefore) {
+        const toNotify = queue[notifyBefore - 1];
+        if (toNotify && toNotify.phone && toNotify.notif_method !== "none") {
           fetch(NOTIFY_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
@@ -226,24 +277,41 @@ function StaffView({ session, queue, current, reload, onLogout }) {
           }).catch(e => console.log("notify error:", e));
         }
       }
-      setFlash(true); setTimeout(() => setFlash(false), 800);
+      setFlash(true);
+      setTimeout(() => setFlash(false), 800);
       await reload();
-    } catch (e) { console.error(e); }
-    setLoading(false);
+    } catch (e) {
+      console.error(e);
+      alert("حدث خطأ! حاول مرة أخرى");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSkip = async () => {
-    if (queue.length === 0) return;
-    await supabase.from("tickets").update({ status: "skipped" }).eq("id", queue[0].id);
+    if (queue.length === 0 || loading) return;
+    setLoading(true);
+    try {
+      await supabase.from("tickets").update({ status: "skipped" }).eq("id", queue[0].id);
+      await reload();
+    } catch(e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  const handleReset = async () => {
+    if (!window.confirm("هل تريد حذف كل التذاكر وإعادة تعيين الطابور؟")) return;
+    await supabase.from("tickets").delete().eq("session_id", session.id);
     await reload();
   };
 
   return (
     <div style={{ maxWidth: "500px", margin: "0 auto", padding: "20px 16px", animation: "fadeIn 0.4s ease" }}>
-      <div style={{ textAlign: "center", marginBottom: "20px" }}>
-        <div style={{ fontSize: "32px" }}>🖥️</div>
-        <h1 style={{ fontFamily: "'Bebas Neue',cursive", fontSize: "32px", color: "#f1f5f9", margin: "4px 0" }}>لوحة الموظف</h1>
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <h1 style={{ fontFamily: "'Bebas Neue',cursive", fontSize: "32px", color: "#f1f5f9", margin: 0 }}>🖥️ لوحة الموظف</h1>
+        <button onClick={() => setShowSettings(true)} style={{ padding: "8px 14px", borderRadius: "10px", border: "1px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.1)", color: "#a5b4fc", cursor: "pointer", fontFamily: "'Cairo',sans-serif", fontSize: "13px" }}>⚙️ إعدادات</button>
       </div>
+
       <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
         {[{ label: "إجمالي اليوم", value: stats.total, color: "#6366f1" }, { label: "تمت خدمتهم", value: stats.done, color: "#10b981" }, { label: "في الانتظار", value: stats.waiting, color: "#ec4899" }].map((s, i) => (
           <div key={i} style={{ flex: 1, background: `${s.color}15`, border: `1px solid ${s.color}30`, borderRadius: "12px", padding: "10px 6px", textAlign: "center" }}>
@@ -252,7 +320,9 @@ function StaffView({ session, queue, current, reload, onLogout }) {
           </div>
         ))}
       </div>
+
       <StatusBar current={current} queueLen={queue.length} />
+
       <div style={{ background: flash ? "rgba(16,185,129,0.12)" : "rgba(10,8,30,0.95)", border: `2px solid ${flash ? "#10b981" : "rgba(99,102,241,0.25)"}`, borderRadius: "20px", padding: "20px", marginBottom: "14px", textAlign: "center", transition: "all 0.4s" }}>
         <div style={{ color: "#475569", fontFamily: "'Cairo',sans-serif", fontSize: "11px", marginBottom: "4px" }}>يُخدم الآن</div>
         <div style={{ fontSize: "68px", fontWeight: "900", fontFamily: "'Bebas Neue',cursive", lineHeight: 1, background: current ? "linear-gradient(135deg,#10b981,#6ee7b7)" : "none", WebkitBackgroundClip: current ? "text" : "unset", WebkitTextFillColor: current ? "transparent" : "#1e293b", color: current ? undefined : "#1e293b" }}>
@@ -260,12 +330,14 @@ function StaffView({ session, queue, current, reload, onLogout }) {
         </div>
         {current?.name && <div style={{ color: "#6ee7b7", fontFamily: "'Cairo',sans-serif", fontSize: "14px", marginTop: "4px" }}>👤 {current.name}</div>}
       </div>
+
       <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
-        <button onClick={handleNext} disabled={queue.length === 0 || loading} style={{ flex: 3, padding: "18px", borderRadius: "14px", border: "none", background: queue.length === 0 ? "rgba(30,41,59,0.5)" : "linear-gradient(135deg,#10b981,#059669)", color: queue.length === 0 ? "#334155" : "#fff", fontSize: "16px", fontFamily: "'Cairo',sans-serif", fontWeight: "700", cursor: queue.length === 0 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-          ▶ {loading ? "..." : queue.length === 0 ? "الطابور فارغ" : `التالي (${queue.length})`}
+        <button onClick={handleNext} disabled={queue.length === 0 || loading} style={{ flex: 3, padding: "18px", borderRadius: "14px", border: "none", background: queue.length === 0 ? "rgba(30,41,59,0.5)" : "linear-gradient(135deg,#10b981,#059669)", color: queue.length === 0 ? "#334155" : "#fff", fontSize: "16px", fontFamily: "'Cairo',sans-serif", fontWeight: "700", cursor: queue.length === 0 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", opacity: loading ? 0.7 : 1 }}>
+          {loading ? "⏳" : "▶"} {loading ? "جاري..." : queue.length === 0 ? "الطابور فارغ" : `التالي (${queue.length})`}
         </button>
-        <button onClick={handleSkip} disabled={queue.length === 0 || loading} style={{ flex: 1, padding: "18px", borderRadius: "14px", border: "1px solid rgba(245,158,11,0.35)", background: "rgba(245,158,11,0.08)", color: queue.length === 0 ? "#334155" : "#f59e0b", fontSize: "20px", cursor: queue.length === 0 ? "not-allowed" : "pointer" }}>⏭</button>
+        <button onClick={handleSkip} disabled={queue.length === 0 || loading} style={{ flex: 1, padding: "18px", borderRadius: "14px", border: "1px solid rgba(245,158,11,0.35)", background: "rgba(245,158,11,0.08)", color: queue.length === 0 ? "#334155" : "#f59e0b", fontSize: "20px", cursor: queue.length === 0 ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>⏭</button>
       </div>
+
       <div style={{ background: "rgba(5,5,20,0.8)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: "16px", overflow: "hidden", marginBottom: "14px" }}>
         <div style={{ padding: "10px 16px", borderBottom: "1px solid rgba(99,102,241,0.1)", color: "#475569", fontFamily: "'Cairo',sans-serif", fontSize: "11px", display: "flex", justifyContent: "space-between" }}>
           <span>الرقم</span><span>الاسم</span><span>الإشعار</span>
@@ -283,17 +355,19 @@ function StaffView({ session, queue, current, reload, onLogout }) {
           </div>
         ))}
       </div>
-      {!confirmClose ? (
-        <button onClick={() => setConfirmClose(true)} style={{ width: "100%", padding: "11px", borderRadius: "12px", border: "1px solid rgba(239,68,68,0.25)", background: "rgba(239,68,68,0.06)", color: "#ef4444", cursor: "pointer", fontFamily: "'Cairo',sans-serif", fontSize: "13px", marginBottom: "8px" }}>🔒 إغلاق الطابور لهذا اليوم</button>
-      ) : (
-        <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "12px", padding: "14px", marginBottom: "8px", textAlign: "center" }}>
-          <div style={{ color: "#f87171", fontFamily: "'Cairo',sans-serif", fontSize: "13px", marginBottom: "10px" }}>⚠️ هل أنت متأكد؟</div>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={() => setConfirmClose(false)} style={{ flex: 1, padding: "9px", borderRadius: "8px", border: "1px solid rgba(99,102,241,0.3)", background: "transparent", color: "#64748b", cursor: "pointer", fontFamily: "'Cairo',sans-serif" }}>إلغاء</button>
-            <button onClick={async () => { await supabase.from("sessions").update({ is_active: false }).eq("id", session.id); setConfirmClose(false); }} style={{ flex: 1, padding: "9px", borderRadius: "8px", border: "none", background: "#ef4444", color: "#fff", cursor: "pointer", fontFamily: "'Cairo',sans-serif", fontWeight: "700" }}>تأكيد</button>
+
+      <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+        {!confirmClose ? (
+          <button onClick={() => setConfirmClose(true)} style={{ flex: 1, padding: "11px", borderRadius: "12px", border: "1px solid rgba(239,68,68,0.25)", background: "rgba(239,68,68,0.06)", color: "#ef4444", cursor: "pointer", fontFamily: "'Cairo',sans-serif", fontSize: "13px" }}>🔒 إغلاق الطابور</button>
+        ) : (
+          <div style={{ flex: 1, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "12px", padding: "10px", display: "flex", gap: "8px" }}>
+            <button onClick={() => setConfirmClose(false)} style={{ flex: 1, padding: "8px", borderRadius: "8px", border: "1px solid rgba(99,102,241,0.3)", background: "transparent", color: "#64748b", cursor: "pointer", fontFamily: "'Cairo',sans-serif" }}>إلغاء</button>
+            <button onClick={async () => { await supabase.from("sessions").update({ is_active: false }).eq("id", session.id); setConfirmClose(false); }} style={{ flex: 1, padding: "8px", borderRadius: "8px", border: "none", background: "#ef4444", color: "#fff", cursor: "pointer", fontFamily: "'Cairo',sans-serif", fontWeight: "700" }}>تأكيد</button>
           </div>
-        </div>
-      )}
+        )}
+        <button onClick={handleReset} style={{ padding: "11px 16px", borderRadius: "12px", border: "1px solid rgba(245,158,11,0.25)", background: "rgba(245,158,11,0.06)", color: "#f59e0b", cursor: "pointer", fontFamily: "'Cairo',sans-serif", fontSize: "13px" }}>🔄 إعادة تعيين</button>
+      </div>
+
       <button onClick={onLogout} style={{ width: "100%", padding: "10px", borderRadius: "10px", border: "1px solid rgba(99,102,241,0.15)", background: "transparent", color: "#334155", cursor: "pointer", fontFamily: "'Cairo',sans-serif", fontSize: "12px" }}>🚪 تسجيل الخروج</button>
     </div>
   );
