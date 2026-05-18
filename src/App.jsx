@@ -4,8 +4,15 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = "https://zondhwwrleijbpaziujl.supabase.co";
 const SUPABASE_KEY = "sb_publishable_FPy29ZX2iXjEmODgOOarRA_zjws9XYp";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-const STAFF_PASSWORD = "1234";
 const NOTIFY_URL = "https://zondhwwrleijbpaziujl.supabase.co/functions/v1/notify-customer";
+
+// ─── Settings helpers ─────────────────────────────────────────────────────────
+const getSettings = () => ({
+  password: localStorage.getItem("staffPassword") || "1234",
+  shopName: localStorage.getItem("shopName") || "Queue Pro",
+  serviceTime: parseInt(localStorage.getItem("serviceTime") || "5"),
+  notifyBefore: parseInt(localStorage.getItem("notifyBefore") || "2"),
+});
 
 async function getOrCreateSession() {
   const today = new Date().toISOString().split("T")[0];
@@ -58,10 +65,14 @@ function ParticlesBg() {
   );
 }
 
-function StatusBar({ current, queueLen }) {
+function StatusBar({ current, queueLen, serviceTime }) {
   return (
     <div style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: "14px", padding: "12px 16px", marginBottom: "20px", display: "flex", justifyContent: "space-around", textAlign: "center" }}>
-      {[{ label: "يُخدم الآن", value: current ? String(current.ticket_number).padStart(3, "0") : "---", color: "#6366f1" }, { label: "في الانتظار", value: queueLen, color: "#ec4899" }, { label: "وقت الانتظار", value: `~${queueLen * 5}د`, color: "#10b981" }].map((s, i) => (
+      {[
+        { label: "يُخدم الآن", value: current ? String(current.ticket_number).padStart(3, "0") : "---", color: "#6366f1" },
+        { label: "في الانتظار", value: queueLen, color: "#ec4899" },
+        { label: "وقت الانتظار", value: `~${queueLen * (serviceTime || 5)}د`, color: "#10b981" }
+      ].map((s, i) => (
         <div key={i}>
           <div style={{ color: s.color, fontSize: "24px", fontWeight: "800", fontFamily: "'Bebas Neue',cursive" }}>{s.value}</div>
           <div style={{ color: "#64748b", fontSize: "10px", fontFamily: "'Cairo',sans-serif" }}>{s.label}</div>
@@ -71,66 +82,104 @@ function StatusBar({ current, queueLen }) {
   );
 }
 
-function StaffLogin({ onLogin }) {
-  const [pass, setPass] = useState("");
-  const [error, setError] = useState("");
-  return (
-    <div style={{ maxWidth: "340px", margin: "60px auto", padding: "16px", animation: "fadeIn 0.4s ease" }}>
-      <div style={{ background: "rgba(15,10,40,0.95)", border: "1px solid rgba(99,102,241,0.35)", borderRadius: "24px", padding: "36px 28px", textAlign: "center", backdropFilter: "blur(24px)" }}>
-        <div style={{ fontSize: "52px", marginBottom: "10px" }}>🔐</div>
-        <h2 style={{ color: "#e2e8f0", fontFamily: "'Cairo',sans-serif", margin: "0 0 6px", fontSize: "22px" }}>دخول الموظف</h2>
-        <p style={{ color: "#475569", fontFamily: "'Cairo',sans-serif", fontSize: "13px", margin: "0 0 24px" }}>أدخل كلمة المرور للمتابعة</p>
-        <input type="password" placeholder="••••" value={pass} onChange={e => { setPass(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && (pass === STAFF_PASSWORD ? onLogin() : setError("كلمة المرور خاطئة ❌"))}
-          style={{ width: "100%", padding: "14px", borderRadius: "12px", background: "rgba(99,102,241,0.1)", border: `1px solid ${error ? "rgba(239,68,68,0.5)" : "rgba(99,102,241,0.3)"}`, color: "#e2e8f0", fontSize: "20px", fontFamily: "monospace", outline: "none", textAlign: "center", marginBottom: "10px", letterSpacing: "6px" }} />
-        {error && <div style={{ color: "#f87171", fontFamily: "'Cairo',sans-serif", fontSize: "13px", marginBottom: "10px" }}>{error}</div>}
-        <button onClick={() => pass === STAFF_PASSWORD ? onLogin() : setError("كلمة المرور خاطئة ❌")}
-          style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "none", background: "linear-gradient(135deg,#6366f1,#ec4899)", color: "#fff", fontSize: "16px", fontFamily: "'Cairo',sans-serif", fontWeight: "700", cursor: "pointer" }}>
-          دخول ✅
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function SettingsPanel({ onClose }) {
-  const [shopName, setShopName] = useState(localStorage.getItem("shopName") || "Queue Pro");
-  const [serviceTime, setServiceTime] = useState(localStorage.getItem("serviceTime") || "5");
-  const [notifyBefore, setNotifyBefore] = useState(localStorage.getItem("notifyBefore") || "2");
+function SettingsPanel({ onClose, onSave }) {
+  const s = getSettings();
+  const [shopName, setShopName] = useState(s.shopName);
+  const [serviceTime, setServiceTime] = useState(String(s.serviceTime));
+  const [notifyBefore, setNotifyBefore] = useState(String(s.notifyBefore));
+  const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [saved, setSaved] = useState(false);
+  const [passError, setPassError] = useState("");
 
   const handleSave = () => {
+    if (newPassword) {
+      if (oldPassword !== getSettings().password) {
+        setPassError("كلمة المرور القديمة خاطئة ❌");
+        return;
+      }
+      if (newPassword.length < 4) {
+        setPassError("كلمة المرور يجب أن تكون 4 أحرف على الأقل");
+        return;
+      }
+      localStorage.setItem("staffPassword", newPassword);
+    }
     localStorage.setItem("shopName", shopName);
     localStorage.setItem("serviceTime", serviceTime);
     localStorage.setItem("notifyBefore", notifyBefore);
-    if (newPassword) localStorage.setItem("staffPassword", newPassword);
     setSaved(true);
-    setTimeout(() => { setSaved(false); onClose(); }, 1200);
+    setTimeout(() => { setSaved(false); onSave(); onClose(); }, 1200);
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)" }}>
-      <div style={{ background: "rgba(15,10,40,0.98)", border: "1px solid rgba(99,102,241,0.4)", borderRadius: "24px", padding: "32px 28px", width: "90%", maxWidth: "400px", animation: "popIn 0.3s ease" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)" }}>
+      <div style={{ background: "rgba(10,8,30,0.99)", border: "1px solid rgba(99,102,241,0.4)", borderRadius: "24px", padding: "32px 28px", width: "92%", maxWidth: "420px", animation: "popIn 0.3s ease", maxHeight: "90vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
           <h2 style={{ color: "#e2e8f0", fontFamily: "'Cairo',sans-serif", margin: 0, fontSize: "20px" }}>⚙️ الإعدادات</h2>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#475569", fontSize: "20px", cursor: "pointer" }}>✕</button>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#475569", fontSize: "22px", cursor: "pointer" }}>✕</button>
+        </div>
+
+        <div style={{ background: "rgba(99,102,241,0.08)", borderRadius: "12px", padding: "12px 14px", marginBottom: "20px" }}>
+          <div style={{ color: "#a5b4fc", fontSize: "11px", fontFamily: "'Cairo',sans-serif", marginBottom: "4px" }}>الإعدادات الحالية</div>
+          <div style={{ color: "#64748b", fontSize: "12px", fontFamily: "'Cairo',sans-serif" }}>
+            اسم المحل: <strong style={{ color: "#e2e8f0" }}>{s.shopName}</strong> |
+            وقت الخدمة: <strong style={{ color: "#e2e8f0" }}>{s.serviceTime}د</strong> |
+            إشعار قبل: <strong style={{ color: "#e2e8f0" }}>{s.notifyBefore} أشخاص</strong>
+          </div>
         </div>
 
         {[
-          { label: "اسم المحل", value: shopName, setValue: setShopName, placeholder: "Queue Pro", type: "text" },
-          { label: "وقت الخدمة (دقائق)", value: serviceTime, setValue: setServiceTime, placeholder: "5", type: "number" },
-          { label: "إشعار قبل (أشخاص)", value: notifyBefore, setValue: setNotifyBefore, placeholder: "2", type: "number" },
-          { label: "كلمة مرور جديدة", value: newPassword, setValue: setNewPassword, placeholder: "اتركه فارغاً للإبقاء على القديم", type: "password" },
+          { label: "🏪 اسم المحل", value: shopName, setValue: setShopName, placeholder: "Queue Pro", type: "text" },
+          { label: "⏱️ وقت الخدمة (دقائق)", value: serviceTime, setValue: setServiceTime, placeholder: "5", type: "number" },
+          { label: "🔔 إشعار قبل (أشخاص)", value: notifyBefore, setValue: setNotifyBefore, placeholder: "2", type: "number" },
         ].map((f, i) => (
-          <div key={i} style={{ marginBottom: "16px" }}>
+          <div key={i} style={{ marginBottom: "14px" }}>
             <label style={{ display: "block", color: "#a5b4fc", fontSize: "12px", marginBottom: "6px", fontFamily: "'Cairo',sans-serif", textAlign: "right" }}>{f.label}</label>
             <input type={f.type} placeholder={f.placeholder} value={f.value} onChange={e => f.setValue(e.target.value)}
               style={{ width: "100%", padding: "11px 13px", borderRadius: "10px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", color: "#e2e8f0", fontSize: "14px", fontFamily: "'Cairo',sans-serif", outline: "none", direction: "rtl" }} />
           </div>
         ))}
 
+        <div style={{ borderTop: "1px solid rgba(99,102,241,0.15)", paddingTop: "16px", marginBottom: "16px" }}>
+          <div style={{ color: "#a5b4fc", fontSize: "12px", fontFamily: "'Cairo',sans-serif", marginBottom: "12px", textAlign: "right" }}>🔐 تغيير كلمة المرور</div>
+          <input type="password" placeholder="كلمة المرور الحالية" value={oldPassword} onChange={e => { setOldPassword(e.target.value); setPassError(""); }}
+            style={{ width: "100%", padding: "11px 13px", borderRadius: "10px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", color: "#e2e8f0", fontSize: "14px", fontFamily: "'Cairo',sans-serif", outline: "none", marginBottom: "8px", direction: "ltr", textAlign: "center", letterSpacing: "4px" }} />
+          <input type="password" placeholder="كلمة المرور الجديدة" value={newPassword} onChange={e => { setNewPassword(e.target.value); setPassError(""); }}
+            style={{ width: "100%", padding: "11px 13px", borderRadius: "10px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", color: "#e2e8f0", fontSize: "14px", fontFamily: "'Cairo',sans-serif", outline: "none", direction: "ltr", textAlign: "center", letterSpacing: "4px" }} />
+          {passError && <div style={{ color: "#f87171", fontSize: "12px", fontFamily: "'Cairo',sans-serif", marginTop: "6px", textAlign: "right" }}>{passError}</div>}
+        </div>
+
         <button onClick={handleSave} style={{ width: "100%", padding: "13px", borderRadius: "12px", border: "none", background: saved ? "linear-gradient(135deg,#10b981,#059669)" : "linear-gradient(135deg,#6366f1,#ec4899)", color: "#fff", fontSize: "15px", fontFamily: "'Cairo',sans-serif", fontWeight: "700", cursor: "pointer", transition: "all 0.3s" }}>
-          {saved ? "✅ تم الحفظ!" : "💾 حفظ الإعدادات"}
+          {saved ? "✅ تم الحفظ بنجاح!" : "💾 حفظ الإعدادات"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function StaffLogin({ onLogin }) {
+  const [pass, setPass] = useState("");
+  const [error, setError] = useState("");
+
+  const handleLogin = () => {
+    const correctPass = getSettings().password;
+    if (pass === correctPass) { onLogin(); }
+    else { setError("كلمة المرور خاطئة ❌"); }
+  };
+
+  return (
+    <div style={{ maxWidth: "340px", margin: "60px auto", padding: "16px", animation: "fadeIn 0.4s ease" }}>
+      <div style={{ background: "rgba(15,10,40,0.95)", border: "1px solid rgba(99,102,241,0.35)", borderRadius: "24px", padding: "36px 28px", textAlign: "center", backdropFilter: "blur(24px)" }}>
+        <div style={{ fontSize: "52px", marginBottom: "10px" }}>🔐</div>
+        <h2 style={{ color: "#e2e8f0", fontFamily: "'Cairo',sans-serif", margin: "0 0 6px", fontSize: "22px" }}>دخول الموظف</h2>
+        <p style={{ color: "#475569", fontFamily: "'Cairo',sans-serif", fontSize: "13px", margin: "0 0 24px" }}>أدخل كلمة المرور للمتابعة</p>
+        <input type="password" placeholder="••••" value={pass}
+          onChange={e => { setPass(e.target.value); setError(""); }}
+          onKeyDown={e => e.key === "Enter" && handleLogin()}
+          style={{ width: "100%", padding: "14px", borderRadius: "12px", background: "rgba(99,102,241,0.1)", border: `1px solid ${error ? "rgba(239,68,68,0.5)" : "rgba(99,102,241,0.3)"}`, color: "#e2e8f0", fontSize: "20px", fontFamily: "monospace", outline: "none", textAlign: "center", marginBottom: "10px", letterSpacing: "6px" }} />
+        {error && <div style={{ color: "#f87171", fontFamily: "'Cairo',sans-serif", fontSize: "13px", marginBottom: "10px" }}>{error}</div>}
+        <button onClick={handleLogin} style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "none", background: "linear-gradient(135deg,#6366f1,#ec4899)", color: "#fff", fontSize: "16px", fontFamily: "'Cairo',sans-serif", fontWeight: "700", cursor: "pointer" }}>
+          دخول ✅
         </button>
       </div>
     </div>
@@ -143,8 +192,9 @@ function ClientView({ session, queue, current }) {
   const [form, setForm] = useState({ name: "", phone: "", notif: "whatsapp" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const shopName = localStorage.getItem("shopName") || "نظام الطابور";
-  const serviceTime = parseInt(localStorage.getItem("serviceTime") || "5");
+  const [settings, setSettings] = useState(getSettings());
+
+  useEffect(() => { setSettings(getSettings()); }, []);
 
   useEffect(() => {
     if (!session) return;
@@ -162,7 +212,11 @@ function ClientView({ session, queue, current }) {
     setLoading(true); setError("");
     try {
       const nextNum = await fetchNextNumber(session.id);
-      const { data, error: err } = await supabase.from("tickets").insert({ session_id: session.id, ticket_number: nextNum, name: form.name, phone: form.phone, notif_method: form.notif, status: "waiting", position: queue.length + 1 }).select().single();
+      const { data, error: err } = await supabase.from("tickets").insert({
+        session_id: session.id, ticket_number: nextNum,
+        name: form.name, phone: form.phone, notif_method: form.notif,
+        status: "waiting", position: queue.length + 1
+      }).select().single();
       if (err) throw err;
       setMyTicket(data);
       localStorage.setItem(`ticket_${session.id}`, JSON.stringify(data));
@@ -180,14 +234,14 @@ function ClientView({ session, queue, current }) {
     <div style={{ maxWidth: "420px", margin: "0 auto", padding: "20px 16px" }}>
       <div style={{ textAlign: "center", marginBottom: "24px" }}>
         <div style={{ fontSize: "40px", marginBottom: "6px" }}>🎫</div>
-        <h1 style={{ fontFamily: "'Bebas Neue',cursive", fontSize: "38px", background: "linear-gradient(135deg,#a5b4fc,#f0abfc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: 0 }}>{shopName}</h1>
+        <h1 style={{ fontFamily: "'Bebas Neue',cursive", fontSize: "38px", background: "linear-gradient(135deg,#a5b4fc,#f0abfc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: 0 }}>{settings.shopName}</h1>
         <p style={{ color: "#475569", fontFamily: "'Cairo',sans-serif", fontSize: "13px", margin: "4px 0 0" }}>احجز مكانك وانتظر بارتياح</p>
       </div>
-      <StatusBar current={current} queueLen={queue.length} />
+      <StatusBar current={current} queueLen={queue.length} serviceTime={settings.serviceTime} />
       {step === "home" && (
         <div style={{ animation: "fadeIn 0.3s ease" }}>
           <button onClick={() => setStep("form")} style={{ width: "100%", padding: "22px", borderRadius: "18px", border: "none", background: "linear-gradient(135deg,#6366f1,#ec4899)", color: "#fff", fontSize: "22px", fontFamily: "'Cairo',sans-serif", fontWeight: "800", cursor: "pointer", boxShadow: "0 10px 36px rgba(99,102,241,0.45)", animation: "pulse 2.5s infinite" }}>🎫 خذ رقمًا الآن</button>
-          {queue.length > 0 && <div style={{ marginTop: "14px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: "12px", padding: "12px 16px", textAlign: "center" }}><span style={{ color: "#94a3b8", fontFamily: "'Cairo',sans-serif", fontSize: "13px" }}>⏳ يوجد <strong style={{ color: "#a5b4fc" }}>{queue.length}</strong> شخص — الانتظار ~<strong style={{ color: "#10b981" }}>{queue.length * serviceTime}</strong> دقيقة</span></div>}
+          {queue.length > 0 && <div style={{ marginTop: "14px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: "12px", padding: "12px 16px", textAlign: "center" }}><span style={{ color: "#94a3b8", fontFamily: "'Cairo',sans-serif", fontSize: "13px" }}>⏳ يوجد <strong style={{ color: "#a5b4fc" }}>{queue.length}</strong> شخص — الانتظار ~<strong style={{ color: "#10b981" }}>{queue.length * settings.serviceTime}</strong> دقيقة</span></div>}
         </div>
       )}
       {step === "form" && (
@@ -232,7 +286,7 @@ function ClientView({ session, queue, current }) {
                 </div>
                 <div style={{ background: "rgba(236,72,153,0.15)", borderRadius: "12px", padding: "10px 16px" }}>
                   <div style={{ color: "#64748b", fontSize: "10px", fontFamily: "'Cairo',sans-serif" }}>الانتظار</div>
-                  <div style={{ color: "#fff", fontSize: "20px", fontFamily: "'Bebas Neue',cursive" }}>~{(position - 1) * serviceTime} د</div>
+                  <div style={{ color: "#fff", fontSize: "20px", fontFamily: "'Bebas Neue',cursive" }}>~{(position - 1) * settings.serviceTime} د</div>
                 </div>
               </div>
             )}
@@ -255,7 +309,7 @@ function StaffView({ session, queue, current, reload, onLogout }) {
   const [stats, setStats] = useState({ total: 0, done: 0, waiting: 0 });
   const [confirmClose, setConfirmClose] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const notifyBefore = parseInt(localStorage.getItem("notifyBefore") || "2");
+  const [settings, setSettings] = useState(getSettings());
 
   useEffect(() => { fetchStats(session.id).then(setStats); }, [queue, current]);
 
@@ -263,13 +317,12 @@ function StaffView({ session, queue, current, reload, onLogout }) {
     if (queue.length === 0 || loading) return;
     setLoading(true);
     try {
-      if (current) {
-        await supabase.from("tickets").update({ status: "done", served_at: new Date().toISOString() }).eq("id", current.id);
-      }
+      if (current) await supabase.from("tickets").update({ status: "done", served_at: new Date().toISOString() }).eq("id", current.id);
       await supabase.from("tickets").update({ status: "serving" }).eq("id", queue[0].id);
-      if (queue.length >= notifyBefore) {
-        const toNotify = queue[notifyBefore - 1];
-        if (toNotify && toNotify.phone && toNotify.notif_method !== "none") {
+      const nb = settings.notifyBefore;
+      if (queue.length >= nb) {
+        const toNotify = queue[nb - 1];
+        if (toNotify?.phone && toNotify.notif_method !== "none") {
           fetch(NOTIFY_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_KEY },
@@ -277,24 +330,17 @@ function StaffView({ session, queue, current, reload, onLogout }) {
           }).catch(e => console.log("notify error:", e));
         }
       }
-      setFlash(true);
-      setTimeout(() => setFlash(false), 800);
+      setFlash(true); setTimeout(() => setFlash(false), 800);
       await reload();
-    } catch (e) {
-      console.error(e);
-      alert("حدث خطأ! حاول مرة أخرى");
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); alert("حدث خطأ! حاول مرة أخرى"); }
+    finally { setLoading(false); }
   };
 
   const handleSkip = async () => {
     if (queue.length === 0 || loading) return;
     setLoading(true);
-    try {
-      await supabase.from("tickets").update({ status: "skipped" }).eq("id", queue[0].id);
-      await reload();
-    } catch(e) { console.error(e); }
+    try { await supabase.from("tickets").update({ status: "skipped" }).eq("id", queue[0].id); await reload(); }
+    catch(e) { console.error(e); }
     finally { setLoading(false); }
   };
 
@@ -306,7 +352,8 @@ function StaffView({ session, queue, current, reload, onLogout }) {
 
   return (
     <div style={{ maxWidth: "500px", margin: "0 auto", padding: "20px 16px", animation: "fadeIn 0.4s ease" }}>
-      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} onSave={() => setSettings(getSettings())} />}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <h1 style={{ fontFamily: "'Bebas Neue',cursive", fontSize: "32px", color: "#f1f5f9", margin: 0 }}>🖥️ لوحة الموظف</h1>
         <button onClick={() => setShowSettings(true)} style={{ padding: "8px 14px", borderRadius: "10px", border: "1px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.1)", color: "#a5b4fc", cursor: "pointer", fontFamily: "'Cairo',sans-serif", fontSize: "13px" }}>⚙️ إعدادات</button>
@@ -321,7 +368,7 @@ function StaffView({ session, queue, current, reload, onLogout }) {
         ))}
       </div>
 
-      <StatusBar current={current} queueLen={queue.length} />
+      <StatusBar current={current} queueLen={queue.length} serviceTime={settings.serviceTime} />
 
       <div style={{ background: flash ? "rgba(16,185,129,0.12)" : "rgba(10,8,30,0.95)", border: `2px solid ${flash ? "#10b981" : "rgba(99,102,241,0.25)"}`, borderRadius: "20px", padding: "20px", marginBottom: "14px", textAlign: "center", transition: "all 0.4s" }}>
         <div style={{ color: "#475569", fontFamily: "'Cairo',sans-serif", fontSize: "11px", marginBottom: "4px" }}>يُخدم الآن</div>
@@ -332,7 +379,7 @@ function StaffView({ session, queue, current, reload, onLogout }) {
       </div>
 
       <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
-        <button onClick={handleNext} disabled={queue.length === 0 || loading} style={{ flex: 3, padding: "18px", borderRadius: "14px", border: "none", background: queue.length === 0 ? "rgba(30,41,59,0.5)" : "linear-gradient(135deg,#10b981,#059669)", color: queue.length === 0 ? "#334155" : "#fff", fontSize: "16px", fontFamily: "'Cairo',sans-serif", fontWeight: "700", cursor: queue.length === 0 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", opacity: loading ? 0.7 : 1 }}>
+        <button onClick={handleNext} disabled={queue.length === 0 || loading} style={{ flex: 3, padding: "18px", borderRadius: "14px", border: "none", background: queue.length === 0 ? "rgba(30,41,59,0.5)" : "linear-gradient(135deg,#10b981,#059669)", color: queue.length === 0 ? "#334155" : "#fff", fontSize: "16px", fontFamily: "'Cairo',sans-serif", fontWeight: "700", cursor: queue.length === 0 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", opacity: loading ? 0.7 : 1, transition: "all 0.2s" }}>
           {loading ? "⏳" : "▶"} {loading ? "جاري..." : queue.length === 0 ? "الطابور فارغ" : `التالي (${queue.length})`}
         </button>
         <button onClick={handleSkip} disabled={queue.length === 0 || loading} style={{ flex: 1, padding: "18px", borderRadius: "14px", border: "1px solid rgba(245,158,11,0.35)", background: "rgba(245,158,11,0.08)", color: queue.length === 0 ? "#334155" : "#f59e0b", fontSize: "20px", cursor: queue.length === 0 ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>⏭</button>
